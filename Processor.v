@@ -79,7 +79,8 @@ module counter (clk, reset,Read_addr);
 endmodule
 
 
-module Instruction_reg (clk, Read_Addr, instruction);
+module Instruction_reg (debugPin_InstructionRegister,clk, Read_Addr, instruction);
+	output [31:0] debugPin_InstructionRegister;
 	reg [8*32 -1:0] instructionMemory;
 	integer ins;
 	input clk;
@@ -87,10 +88,12 @@ module Instruction_reg (clk, Read_Addr, instruction);
 	output [31:0] instruction;
 	reg [31:0] instruction;
 	integer i;
+
+	assign debugPin_InstructionRegister[31:0]=instruction[31:0];
 	initial
 	begin
-		for(ins=0;ins<8;ins++)begin
-			instructionMemory[ins]=0;
+		for(ins=0;ins<32;ins++)begin
+			instructionMemory[ins]=1'b0;
 		end
 		//Instruction 0
 		instructionMemory[32*0+27 : 32*0+24] =4'b0000;//oppcode
@@ -135,15 +138,16 @@ module Instruction_reg (clk, Read_Addr, instruction);
 
 	end
 	always @(negedge clk) begin
-		for(i=0;i<8;i++)begin
+		for(i=0;i<32;i++)begin
 			instruction[i]=instructionMemory[Read_Addr*8+i];
 		end
 	end
 endmodule
 
-module CU(instruction, OUT1addr, OUT2addr, INaddr,SELECT,imValue,imValueMUXControlSignal,addSumMUXControlSignal);
+module CU(debugPinCU,instruction, OUT1addr, OUT2addr, INaddr,SELECT,imValue,imValueMUXControlSignal,addSumMUXControlSignal);
 	//In out here does not make sense for th control unit
 	//They are named in the register file perspective
+	output [7:0] debugPinCU;
 	input [31:0] instruction;
 	output [2:0] OUT1addr;
 	output [2:0] OUT2addr;
@@ -152,15 +156,24 @@ module CU(instruction, OUT1addr, OUT2addr, INaddr,SELECT,imValue,imValueMUXContr
 	output [7:0] imValue;
 	output imValueMUXControlSignal;
 	output addSumMUXControlSignal;
-	reg [2:0] OUT1addr;
-	reg [2:0] OUT2addr;
-	reg [2:0] INaddr;
-	reg [2:0] SELECT;
-	reg [7:0] imValue;
+//	reg [2:0] OUT1addr;
+//	reg [2:0] OUT2addr;
+//	reg [2:0] INaddr;
+//	reg [2:0] SELECT;
+//	reg [7:0] imValue;
 	reg imValueMUXControlSignal;
 	reg addSumMUXControlSignal;
 
-	always @(instruction) begin
+	assign debugPinCU[2:0]=SELECT[2:0];
+
+
+	assign OUT1addr=instruction[2:0];
+	assign OUT2addr=instruction[10:8];
+	assign INaddr=instruction[18:16];
+	assign imValue=instruction[7:0];
+	assign SELECT=instruction[27:25];
+
+	always @(*) begin
 		case(instruction[3:1])
 			3'b000: imValueMUXControlSignal = ~instruction[24];
 			3'b001: addSumMUXControlSignal = instruction[24];
@@ -168,11 +181,6 @@ module CU(instruction, OUT1addr, OUT2addr, INaddr,SELECT,imValue,imValueMUXContr
 
 
 
-		OUT1addr=instruction[2:0];
-		OUT2addr=instruction[10:8];
-		INaddr=instruction[18:16];
-		imValue=instruction[7:0];
-		SELECT=instruction[27:25];
 
 	end
 endmodule
@@ -204,16 +212,18 @@ module TwosComplement(out,in);
 endmodule
 
 
-module processor(debugPin,clk,reset);
+module processor(debugPin,debugPinCU,debugPin_InstructionRegister,clk,reset);
 	input clk;
 	input reset;
 	output [63:0] debugPin;
+	output [7:0] debugPinCU;
+	output [31:0] debugPin_InstructionRegister;
 
 	wire [31:0] instructionAddress;
 	wire [31:0] instruction;
 
 	counter myCounter(clk,reset,instructionAddress);
-	Instruction_reg myInstruction_reg(clk, instructionAddress, instruction);
+	Instruction_reg myInstruction_reg(debugPin_InstructionRegister,clk, instructionAddress, instruction);
 
 
 	wire [2:0] OUT1addr;
@@ -224,7 +234,7 @@ module processor(debugPin,clk,reset);
 	wire imValueMUXControlSignal;
 	wire addSumMUXControlSignal;
 
-	CU myCU(instruction,OUT1addr,OUT2addr,INaddr,SELECT,imValue,imValueMUXControlSignal,addSumMUXControlSignal);
+	CU myCU(debugPinCU,instruction,OUT1addr,OUT2addr,INaddr,SELECT,imValue,imValueMUXControlSignal,addSumMUXControlSignal);
 
 	wire [7:0] IN;
 	wire [7:0] OUT1;
@@ -255,15 +265,20 @@ module testbed;
 	reg reset;
 	reg clk;
 	wire [63:0] debugPin;
+	wire [7:0] debugPinCU;
+	wire [31:0] debugPin_InstructionRegister;
 
-	processor myProcessor(debugPin,clk,reset);
+	processor myProcessor(debugPin,debugPinCU,debugPin_InstructionRegister,clk,reset);
 
 
 	initial
 	begin
-		$monitor("reg0 = %7b",debugPin[7:0]);
-		$monitor("reg1 = %7b",debugPin[15:8]);
-		$monitor("reg2 = %7b",debugPin[23:16]);
+		$monitor("reg0 = %8b",debugPin[7:0]);
+		$monitor("reg1 = %8b",debugPin[15:8]);
+		$monitor("reg2 = %8b",debugPin[23:16]);
+
+		$monitor("CU debug pin %8b",debugPinCU[7:0]);
+		$monitor("The instruction %32b",debugPin_InstructionRegister[31:0]);
 		//$dumpfile("wavedata.vcd");
 	    //$dumpvars(0,testbed);
 
