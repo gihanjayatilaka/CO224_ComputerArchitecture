@@ -22,8 +22,6 @@ module alu(Result,DATA1,DATA2,Select);
 	
 endmodule
 
- 
-
 module regfile8x8a(debugPin,clk,INaddr,IN,OUT1addr,OUT1,OUT2addr,OUT2);
 	output [63:0] debugPin;
 	reg [(8*8)-1:0] memory=0;
@@ -42,10 +40,12 @@ module regfile8x8a(debugPin,clk,INaddr,IN,OUT1addr,OUT1,OUT2addr,OUT2);
 	assign OUT2=outReg2[7:0];
 	assign debugPin = memory[63:0];
 
-	always @(posedge clk) begin
+
+
+	always @(OUT1addr,OUT2addr) begin
 		for(i=0;i<8;i=i+1) begin
-			outReg1[i]<=memory[OUT1addr*8 + i];
-			outReg2[i]<=memory[OUT2addr*8 + i];
+			outReg1[i]=memory[OUT1addr*8 + i];
+			outReg2[i]=memory[OUT2addr*8 + i];
 		end
 	end
 
@@ -115,10 +115,10 @@ module Instruction_reg (debugPin_InstructionRegister,clk, Read_Addr, instruction
 		instructionMemory[32*2+10 : 32*2+08] =3'b000;//Source 2
 		instructionMemory[32*2+ 7 : 32*2+ 0] =8'hBB;//Source 1
 		//Instruction 3;
-		instructionMemory[32*3 +27 : 32*3+24] =4'b0010;//oppcode ERROR
+		instructionMemory[32*3 +27 : 32*3+24] =4'b0010;//
 		instructionMemory[32*3+18 : 32*3+16] =3'b101;//Dest
 		instructionMemory[32*3+10 : 32*3+08] =3'b110;//Source 2
-		instructionMemory[32*3+ 2 : 32*3+ 0] =3'b011;//Source 1
+		instructionMemory[32*3+ 7 : 32*3+ 0] =8'b011;//Source 1
 		//Instruction 4;
 		instructionMemory[32*4 +27 : 32*4+24] =4'b0100;//oppcode
 		instructionMemory[32*4+18 : 32*4+16] =3'b001;//Dest
@@ -204,24 +204,45 @@ module MUX(out,a,b,control);
 
 endmodule
 
+module MUX_ThreeBitControl(out,a,b,control);
+	input [7:0] a;
+	input [7:0] b;
+	output [7:0] out;
+	input [2:0] control;
+	reg [7:0] out;
+	
+
+	always@(a,b,control)begin
+		if(control==3'b000)begin
+			out=a[7:0];
+		end else begin
+			out=b[7:0];
+		end
+	end
+
+endmodule
+
 module TwosComplement(out,in);
 	input [7:0] in;
 	output [7:0] out;
-	reg [7:0] out;
+	//reg [7:0] out;
 
+	assign out[7:0] =-in[7:0];
+	/*
 	always @(in)begin
 		out= ~in + 8'b00000001;
-	end
+	end*/
 endmodule
 
 
-module processor(debugPin,debugPinCU,debugPin_InstructionRegister,debugPin_PC,clk,reset);
+module processor(debigPinALU,debugPin,debugPinCU,debugPin_InstructionRegister,debugPin_PC,clk,reset);
 	input clk;
 	input reset;
 	output [63:0] debugPin;
 	output [15:0] debugPinCU;
 	output [31:0] debugPin_InstructionRegister;
 	output [31:0] debugPin_PC;
+	output [26:0] debigPinALU;
 
 	wire [31:0] instructionAddress;
 	wire [31:0] instruction;
@@ -248,16 +269,19 @@ module processor(debugPin,debugPinCU,debugPin_InstructionRegister,debugPin_PC,cl
 
 	wire [7:0] DATA1;
 	wire [7:0] DATA2;
+	wire [7:0] tempp;
 	wire [7:0] TwosComplementOutput;
 
 	TwosComplement myTwosComplement(TwosComplementOutput,OUT2);
 
-	MUX myMUX_intermediateValue(DATA1,OUT1,imValue,imValueMUXControlSignal);
-	MUX myMUX_addSub(DATA2,TwosComplementOutput,OUT2,addSumMUXControlSignal);
+	MUX myMUX_intermediateValue(tempp,OUT1,imValue,imValueMUXControlSignal);
+	MUX myMUX_addSub(DATA2,OUT2,TwosComplementOutput,addSumMUXControlSignal);
+	MUX_ThreeBitControl myMUX_addSub2(DATA1,tempp,OUT1,SELECT);
+	alu myAlu(IN,DATA1,DATA2,SELECT);//myAlu(Result,DATA1,DATA2,Select)
 
-	alu myAlu(IN,DATA1,OUT2,SELECT);//myAlu(Result,DATA1,DATA2,Select)
-
-
+	assign debigPinALU[7:0]=OUT2[7:0];
+	assign debigPinALU[15:8]=DATA1[7:0];
+	assign debigPinALU[23:16]=IN[7:0];
 
 
 endmodule
@@ -272,14 +296,15 @@ module testbed;
 	wire [15:0] debugPinCU;
 	wire [31:0] debugPin_InstructionRegister;
 	wire [31:0] debugPin_PC;
+	wire [26:0] debigPinALU;
 
-	processor myProcessor(debugPin,debugPinCU,debugPin_InstructionRegister,debugPin_PC,clk,reset);
+	processor myProcessor(debigPinALU,debugPin,debugPinCU,debugPin_InstructionRegister,debugPin_PC,clk,reset);
 
 
 	initial
 	begin
 		$monitor("reg0 =%d, reg1 =%d, reg2 =%d, reg3 =%d, reg4 =%d, reg5 =%d, reg6 =%d, reg7 =%d,",debugPin[7:0],debugPin[15:8],debugPin[23:16],debugPin[31:24],debugPin[39:32],debugPin[47:40],debugPin[55:48],debugPin[63:56]);
-
+		//$monitor("ALU d1=%d d2=%d ans=%d",debigPinALU[7:0],debigPinALU[15:8],debigPinALU[23:16]);
 		//$monitor("SELECT=%d Add1=%d Add2=%d",debugPinCU[2:0],debugPinCU[5:3],debugPinCU[8:6]);
 		//$monitor("The instruction:  %8b %8b %8b %8b ",debugPin_InstructionRegister[31:24],debugPin_InstructionRegister[23:16],debugPin_InstructionRegister[15:8],debugPin_InstructionRegister[7:0]);
 		//$monitor("PC =%d",debugPin_PC);
