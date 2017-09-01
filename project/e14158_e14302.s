@@ -43,6 +43,11 @@ readDims:
 
 
 @>>>>>>>>>>SWICH CASE<<<<<<<<<<<<<<
+@	switch(r6){
+@		case 0,1,2,3: startReading();
+@		case OTHER:print("Invalid operation");
+@	}
+
 	cmp r6, #0
 	beq startReading
 	cmp r6, #1
@@ -81,13 +86,23 @@ scan:
 	bl	scanf	@scanf("%d",sp)
 	bal increment
 loopTermination:
-	
+@>>>>>>>>>>>>>Reading the image is over<<<<<<<<<<<<<<<<<	
 
 
 
 
 @>>>>>>>>>>>>>COMMON OPERATION<<<<<<<<<<<<<<<<<<<<<,
+
+@	switch(r6){
+@		case 0:print("Original");
+@		case 1:print("Inversion");
+@		case 2:print("Rotation by 180");
+@		case 3:print("Flip");
+@	}
+
 commonOperation:
+
+
 
 @>>>>>>>>>>SWICH CASE<<<<<<<<<<<<<<
 	cmp r6, #0
@@ -114,11 +129,16 @@ print_flip:
 printend:	
 	bl 	printf
 
-
-
 @	for(outerLoopInitialize;outerLoopCondtionCheck;outerLoopIncrement){
 @		for(innerLoopInitialize;innerLoopIncrement;innerLoopCondtionCheck){
-@			innerLoopFunction;
+@			common_innerLoopFunction;
+@			swicth(r6){	
+@				case 0:original_innerLoopFunction
+@				case 1:inversion_innerLoopFunction
+@				case 2:rotation_innerLoopFunction
+@				case 3:flip_innerLoopFunction
+@			}
+@			common_innerLoopFinalStatement;
 @		}
 @		outerLoopFunction;
 @	}
@@ -240,24 +260,18 @@ common_innerLoopFinalStatement:
 common_innerLoopIncrement:
 	add r9, r9, #1
 	bal common_innerLoopCondtionCheck
-
-
-
 @>>>>>>>>>>>>>COMMON OPERATION OVER<<<<<<<<<<<<<<<<<<<<<,
 
 
 
 
 
-
+@>>>>>>>>>>>>>>>> STACK HANDLING<<<<<<<<<<<<<<<<<<<<<<
 notValidOppcode:
 	ldr r0, =format_InvalidOperation
 	bl printf
 	add sp, sp, #12
 	bal exitFinal
-
-
-
 exit: 
 	mul r0, r4,r5
 	add r0, r0, #3
@@ -268,12 +282,10 @@ exit:
 
 exitFinal:
     @ stack handling (pop lr from the stack) and return
-
-
 	ldr	lr, [sp, #0]
 	add	sp, sp, #4
 	mov	pc, lr		
-	
+@>>>>>>>>>>>>>>>> STACK HANDLING OVER<<<<<<<<<<<<<<<<<	
 	
 	.data	@ data memory	
 format_readInt: .asciz "%d"
