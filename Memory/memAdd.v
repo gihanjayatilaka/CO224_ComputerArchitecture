@@ -62,11 +62,12 @@ always @(posedge clk)
 begin
 	if(~reset && !busy_wait)
 		begin
+			
 			Read_addr <= Read_addr + 1'b1;	
 		end
 		
 	else if (busy_wait) begin
-		Read_addr <= Read_addr;
+		Read_addr <= Read_addr ;
 	end
 	else begin
 		Read_addr <= 4'b0000;
@@ -177,7 +178,12 @@ begin
 			data2_compli_control = 1'b1;
 			//$display("oper = SUB");
 		default : 
-		;
+		begin
+			memWrite = 1'b0;
+			memRead = 1'b0;	
+		end
+		
+		
 
 	endcase
 	
@@ -314,7 +320,7 @@ output[7:0]     read_data;
 output			busy_wait;
 
 reg[7:0]     read_data;
-reg busy_wait=1'b0,clkMem=1'b0;
+reg busy_wait,clkMem=1'b0;
 integer  i;
 
 // Declare memory 256x8 bits 
